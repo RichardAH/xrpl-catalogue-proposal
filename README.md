@@ -75,7 +75,7 @@ An array of 16777216 offsets relative to TransactionOffset. The index of this ar
         TransactionIndex ::= FileOffset(uint64){16777216}
 
 ### AccountIndex
-An array of 16777216 offsets relative to the AccountOffset. The index of this array is the first 3 bytes of the Account ID under query. The offset is the beginning of the set of transactions that affected any account with this prefix. The end of that set is the next non `NOT_FOUND` entry in the array or the beginning of the next section if there are no further `NOT_FOUND` entries in the AccountIndex array.
+An array of 16777216 offsets relative to the AccountOffset. The index of this array is the first 3 bytes of the Account ID under query. The offset is the beginning of the set of transactions that affected any account with this prefix within the 1048576 ledgers. The end of that set is the next non-`NOT_FOUND` entry in the array or the beginning of the next section if there are no further non-`NOT_FOUND` entries in the AccountIndex array.
 
         AccountIndex ::= FileOffset(uint64){16777216}
 
@@ -87,7 +87,7 @@ An ordered list of transactions with their metadata that occured across the whol
         TransactionSection ::= TransactionEntry*
 
 ### Account
-A list sorted first by account then by transaction hash of transactions that affected those aforesaid accounts. Transactions are referenced via an offset relative to the Transaction Section. Transactions may be referenced more than once.
+A list of AccountEntries sorted first by account ID then by transaction hash of transactions that affected those aforesaid accounts. Transactions are referenced via an offset relative to the Transaction Section (TransactionOffset). Transactions may be referenced more than once.
     
         AccountEntry ::= Len(uint32) AccountID(uint160) FileOffset(uint64)
 
