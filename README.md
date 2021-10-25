@@ -1,5 +1,7 @@
 # XRPL Catalogue Proposal
 
+NOTE: README IS WIP
+
 ## Introduction
 The XRP ledger produces a large amount of immutable historical data which currently must be maintained across a network of [Full History](https://xrpl.org/configure-full-history.html) nodes or it will be forever lost.
 
