@@ -11,19 +11,30 @@ An XRPL _Catalogue_ is a file. Each Cataglogue contains the complete data of `10
 
 The file format is a binary format. It begins with a header followed by several fixed length indicies, finally followed by several variable length sections.
 
+### Constants and terms
+| Term | Description |
+|--|--|
+|`NOT_FOUND`|Constant: 0xFFFFFFFFFFFFFFFFULL.|
+|`::=`|_defined as_|
+|`*`|0 or more instances of the preceeding|
+|`(x)`|size or type information about preceeding field|
+|`{x}`|exactly x instance of the preceeding|
+|`[x]`|grouping of other elements such that another operator can act on the group|
+
 ## Overview
  Sections start at file offset `0`:
 |Size| Type / Info | Section | Notes |
 |--|--|--|--|
 | 48 b | _Catalogue Header_  | Header| Contains file offsets to sections |
-| 1 Kib | uint64_t[0x80] | StateIndex | Relative to StateOffset, location of each State Entry |
-| 8 Mib | uint64_t[0x100000] | LedgerIndex | Relative to LedgerOffset |
-| 128 Mib | uint64_t[0x1000000] | TransactionIndex | Relative to TransactionOffset |
-| 128 Mib | uint64_t[0x1000000] | AccountIndex | Relative to AccountOffset |
-| variable | [len txn_hash blob meta]* | Transaction | Sorted by txn_hash |
-| variable | [len acc_id txn_offset* ]* | Account | Sorted by acc_id |
-| variable | [len ledger_header] | Ledger | Sorted by seq_num | 
-| variable | [len 7zblob]{0x80} | State | Sorted by sequence number |
+| 1 Kib | uint64{0x80} | StateIndex | Relative to StateOffset, location of each State Entry |
+| 8 Mib | uint64{0x100000} | LedgerIndex | Relative to LedgerOffset |
+| 128 Mib | uint64{0x1000000} | TransactionIndex | Relative to TransactionOffset |
+| 128 Mib | uint64{0x1000000} | AccountIndex | Relative to AccountOffset |
+| variable | [ len txn_hash blob meta ]* | Transaction | Sorted by txn_hash |
+| variable | [ len acc_id txn_offset* ]* | Account | Sorted by acc_id |
+| variable | [ len ledger_header ] | Ledger | Sorted by seq_num | 
+| variable | [ len 7zblob ]{0x80} | State | Sorted by sequence number |
+
 
 ## Sections
 
@@ -31,59 +42,80 @@ The file format is a binary format. It begins with a header followed by several 
 The header is 48 bytes containing the following fields.
 |Size| Type | Entry | Description |
 |--|--|--|--|
-| 4b | uint32_t | Magic Number | `0xCA7A` |
-| 4b | uint32_t | Version | `0` |
-| 8b | uint64_t | FirstLedgerIndex | The first ledger number in this Catalogue |
-| 8b | uint64_t | TransactionOffset| The file offset the _Transaction_ section starts at|
-| 8b | uint64_t | AccountOffset| The file offset the _Account_ section starts at|
-| 8b | uint64_t | LedgerOffset| The file offset the _Ledger_ section starts at|
-| 8b | uint64_t | StateOffset| The file offset the _State_ section starts at|
+| 4b | uint32 | Magic Number | `0xCA7A` |
+| 4b | uint32 | Version | `0` |
+| 8b | uint64 | FirstLedgerIndex | The first ledger number in this Catalogue |
+| 8b | uint64 | TransactionOffset| The file offset the _Transaction_ section starts at|
+| 8b | uint64 | AccountOffset| The file offset the _Account_ section starts at|
+| 8b | uint64 | LedgerOffset| The file offset the _Ledger_ section starts at|
+| 8b | uint64 | StateOffset| The file offset the _State_ section starts at|
 
 
 ### LedgerIndex
+An array of 1048576 offets relative to LedgerOffset allowing the direct indexing of a particular ledger header given a ledger sequence number. The array index is the ledger sequence number less the FirstLedgerIndex.
+
+        LedgerIndex ::= FileOffset(uint64){1048576}
 
 ### StateIndex
+An array of 128 offsets relative to StateOffset allowing the direct indexing of a particular StateEntry.
+
+        StateIndex ::= FileOffset(uint64){128}
 
 ### TransactionIndex
+An array of 16777216 offsets relative to TransactionOffset. The index of this array is the first 3 bytes of the transaction hash. The offset is the first TransactionEntry that begins with those bytes or `NOT_FOUND` if no such transaction exists across the whole span of 1048576 ledgers.
+
+        TransactionIndex ::= FileOffset(uint64){16777216}
 
 ### AccountIndex
+An array of 16777216 offsets relative to the AccountOffset. The index of this array is the first 3 bytes of the Account ID under query. The offset is the beginning of the set of transactions that affected any account with this prefix. The end of that set is the next non `NOT_FOUND` entry in the array or the beginning of the next section if there are no further `NOT_FOUND` entries in the AccountIndex array.
 
 ### Transaction
+An ordered list of transactions with their metadata that occured across the whole 1048576 ledgers.
+
+        TransactionEntry ::= Len(uint32) TransactionHash(uint256) TxnBlob(variable length) Meta(variable length)
+Thus:
+        TransactionSection ::= TransactionEntry*
 
 ### Account
+A list sorted first by account then by transaction hash of transactions that affected those aforesaid accounts. Transactions are referenced via an offset relative to the Transaction Section. Transactions may be referenced more than once.
+    
+    AccountEntry ::= Len(uint32) AccountID(uint160) FileOffset(uint64)
+
+    AccountSection ::= AccountEntry*
+
 
 ### Ledger
 Ledger headers are stored uncompressed in this section.
 
-Each Ledger header is placed into canonical XRPL serialized binary format then uint32_t length prefixed. 
+Each Ledger header is placed into canonical XRPL serialized binary format then uint32 length prefixed. 
 
-	    LedgerEntry ::= Len(uint32_t) SLedgerHeader(variable length)
+        LedgerEntry ::= Len(uint32) SLedgerHeader(variable length)
 
 These LedgerEntries are concatenated in sequential order to make up the section:
 
-	    LedgerSection ::= LedgerEntry{1048576}
+        LedgerSection ::= LedgerEntry{1048576}
 
  
 
 ### State
 Each consecutive set of `8192` ledgers, in canonical XRPL serialized binary format, are solidly compressed using 7z compression into an archive where the filename is the ledger number, as below:
 
-		7ZipArchive ::= 
-		    ** example **
-		    /
-		      |- 67256320
-		      |- 67256321
-		      |- 67256322
-		      .
-		      .
-		      .
-		      |- 67264511
-		      
-The 7ZipArchive is prefixed with a uint32_t length. This is called a StateEntry:
+        7ZipArchive ::= 
+            ** example **
+            /
+              |- 67256320
+              |- 67256321
+              |- 67256322
+              .
+              .
+              .
+              |- 67264511
+              
+The 7ZipArchive is prefixed with a uint32 length. This is called a StateEntry:
 
-		StateEntry ::= Len(uint32_t) 7ZipArchive(variable length)
+        StateEntry ::= Len(uint32) 7ZipArchive(variable length)
 
 Each of `128` State Entries are then sequentially written from the start of the State section to the end of the file.
 
-		StateSection ::= StateEntry{128}
+        StateSection ::= StateEntry{128}
 
