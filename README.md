@@ -9,7 +9,7 @@ Note that some optimisation of history sharing and storage has already been achi
 
 An XRPL _Catalogue_ is a file. Each Cataglogue contains the complete data of `1048575` sequential validated ledgers. The file format is organised such that the ledger data is both well compressed and fast to search without an external index, or preparation time.
 
-The file format is a binary format. It begins with a header followed by several fixed length indicies, finally followed by several variable length sections.
+The file format is a binary format. It begins with a header followed by several fixed length indicies, finally followed by several varlen sections.
 
 ### Constants and terms
 | Term | Description |
@@ -20,6 +20,7 @@ The file format is a binary format. It begins with a header followed by several 
 |`(x)`|size or type information about preceeding field|
 |`{x}`|exactly x instance of the preceeding|
 |`[x]`|grouping of other elements such that another operator can act on the group|
+|`varlen` |varable length|
 
 ## Overview
  Sections start at file offset `0`:
@@ -72,8 +73,8 @@ An array of 16777216 offsets relative to the AccountOffset. The index of this ar
 ### Transaction
 An ordered list of transactions with their metadata that occured across the whole 1048576 ledgers.
 
-        TransactionEntry ::= Len(uint32) TransactionHash(uint256) TxnBlob(variable length) Meta(variable length)
-Thus:
+        TransactionEntry ::= Len(uint32) TransactionHash(uint256) TxnBlob(varlen) Meta(varlen)
+
         TransactionSection ::= TransactionEntry*
 
 ### Account
@@ -89,7 +90,7 @@ Ledger headers are stored uncompressed in this section.
 
 Each Ledger header is placed into canonical XRPL serialized binary format then uint32 length prefixed. 
 
-        LedgerEntry ::= Len(uint32) SLedgerHeader(variable length)
+        LedgerEntry ::= Len(uint32) SLedgerHeader(varlen)
 
 These LedgerEntries are concatenated in sequential order to make up the section:
 
@@ -113,7 +114,7 @@ Each consecutive set of `8192` ledgers, in canonical XRPL serialized binary form
               
 The 7ZipArchive is prefixed with a uint32 length. This is called a StateEntry:
 
-        StateEntry ::= Len(uint32) 7ZipArchive(variable length)
+        StateEntry ::= Len(uint32) 7ZipArchive(varlen)
 
 Each of `128` State Entries are then sequentially written from the start of the State section to the end of the file.
 
