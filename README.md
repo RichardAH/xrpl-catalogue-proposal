@@ -9,7 +9,7 @@ Note that some optimisation of history sharing and storage has already been achi
 
 An XRPL _Catalogue_ is a file. Each Cataglogue contains the complete data of `1048575` sequential validated ledgers. The file format is organised such that the ledger data is both well compressed and fast to search without an external index, or preparation time.
 
-The file format is a binary format. It begins with a header followed by several fixed length indicies, finally followed by several varlen sections.
+The file format is a binary format. It begins with a header followed by several fixed length indicies, finally followed by several variable length sections.
 
 ### Constants and terms
 | Term | Description |
@@ -20,13 +20,14 @@ The file format is a binary format. It begins with a header followed by several 
 |`(x)`|size or type information about preceeding field|
 |`{x}`|exactly x instance of the preceeding|
 |`[x]`|grouping of other elements such that another operator can act on the group|
-|`varlen` |varable length|
+|`varlen` |variable length|
 
-## Overview
- Sections start at file offset `0`:
+## File Structure
+Each section is explained in detail after this table.
+
 |Size| Type / Info | Section | Notes |
 |--|--|--|--|
-| 48 b | _Catalogue Header_  | Header| Contains file offsets to sections |
+| 48 b | [ magic version first_ledger_index offset{4} ] | Header| Contains file offsets to sections |
 | 1 Kib | uint64{0x80} | StateIndex | Relative to StateOffset, location of each State Entry |
 | 8 Mib | uint64{0x100000} | LedgerIndex | Relative to LedgerOffset |
 | 128 Mib | uint64{0x1000000} | TransactionIndex | Relative to TransactionOffset |
@@ -36,6 +37,9 @@ The file format is a binary format. It begins with a header followed by several 
 | variable | [ len ledger_header ] | Ledger | Sorted by seq_num | 
 | variable | [ len 7zblob ]{0x80} | State | Sorted by sequence number |
 
+Grammatically:
+
+        Catalogue ::= Header StateIndex LedgerIndex TransactionIndex AccountIndex Transaction Account Ledger State
 
 ## Sections
 
@@ -51,6 +55,9 @@ The header is 48 bytes containing the following fields.
 | 8b | uint64 | LedgerOffset| The file offset the _Ledger_ section starts at|
 | 8b | uint64 | StateOffset| The file offset the _State_ section starts at|
 
+Grammatically:
+
+        Header ::= MagicNumber(uint32) Version(uint32) FileOffset(uint64){4}
 
 ### LedgerIndex
 An array of 1048576 offets relative to LedgerOffset allowing the direct indexing of a particular ledger header given a ledger sequence number. The array index is the ledger sequence number less the FirstLedgerIndex.
@@ -70,6 +77,8 @@ An array of 16777216 offsets relative to TransactionOffset. The index of this ar
 ### AccountIndex
 An array of 16777216 offsets relative to the AccountOffset. The index of this array is the first 3 bytes of the Account ID under query. The offset is the beginning of the set of transactions that affected any account with this prefix. The end of that set is the next non `NOT_FOUND` entry in the array or the beginning of the next section if there are no further `NOT_FOUND` entries in the AccountIndex array.
 
+        AccountIndex ::= FileOffset(uint64){16777216}
+
 ### Transaction
 An ordered list of transactions with their metadata that occured across the whole 1048576 ledgers.
 
@@ -80,9 +89,9 @@ An ordered list of transactions with their metadata that occured across the whol
 ### Account
 A list sorted first by account then by transaction hash of transactions that affected those aforesaid accounts. Transactions are referenced via an offset relative to the Transaction Section. Transactions may be referenced more than once.
     
-    AccountEntry ::= Len(uint32) AccountID(uint160) FileOffset(uint64)
+        AccountEntry ::= Len(uint32) AccountID(uint160) FileOffset(uint64)
 
-    AccountSection ::= AccountEntry*
+        AccountSection ::= AccountEntry*
 
 
 ### Ledger
@@ -100,18 +109,20 @@ These LedgerEntries are concatenated in sequential order to make up the section:
 
 ### State
 Each consecutive set of `8192` ledgers, in canonical XRPL serialized binary format, are solidly compressed using 7z compression into an archive where the filename is the ledger number, as below:
-
+        
         7ZipArchive ::= 
-            ** example **
+        7z compressed file structure
+        [
             /
-              |- 67256320
+              |- 67256320           ** example **
               |- 67256321
               |- 67256322
               .
               .
               .
               |- 67264511
-              
+         ]
+         
 The 7ZipArchive is prefixed with a uint32 length. This is called a StateEntry:
 
         StateEntry ::= Len(uint32) 7ZipArchive(varlen)
