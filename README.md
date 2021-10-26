@@ -39,7 +39,7 @@ Each section is explained in detail after this table.
 
 Grammatically:
 
-        Catalogue ::= Header StateIndex LedgerIndex TransactionIndex AccountIndex Transaction Account Ledger State
+        Catalogue ::= Header StateIndex LedgerIndex TransactionIndex AccountIndex TransactionSection AccountSection LedgerSection StateSection
 
 ## Sections
 
