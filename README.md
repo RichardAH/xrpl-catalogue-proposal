@@ -22,6 +22,7 @@ The file format is a binary format. It begins with a header followed by several 
 |`[x]`|grouping of other elements such that another operator can act on the group|
 |`varlen` |variable length|
 |`uintX`|unsigned integer in _little endian_ format of size X bits (always a multiple of 8) ^|
+
 Little endian used to make reads fast as possible on commodity hardware
 
 
