@@ -11,7 +11,7 @@ An XRPL _Catalogue_ is a file. Each Cataglogue contains the complete data of `10
 
 The file format is a binary format. It begins with a header followed by several fixed length indicies, finally followed by several variable length sections.
 
-### Constants and terms
+## Glossary
 | Term | Description |
 |--|--|
 |`NOT_FOUND`|Constant: 0xFFFFFFFFFFFFFFFFULL.|
@@ -21,6 +21,9 @@ The file format is a binary format. It begins with a header followed by several 
 |`{x}`|exactly x instance of the preceeding|
 |`[x]`|grouping of other elements such that another operator can act on the group|
 |`varlen` |variable length|
+|`uintX`|unsigned integer in _little endian_ format of size X bits (always a multiple of 8) ^|
+Little endian used to make reads fast as possible on commodity hardware
+
 
 ## File Structure
 Each section is explained in detail after this table.
